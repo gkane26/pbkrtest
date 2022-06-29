@@ -61,11 +61,22 @@
 
 
 .is.lmm <- function(object) {
-    inherits(object, "lmerMod")
+    inherits(object, c("lme", "lmerMod", "gls"))
 }
 
 .is.mm <- function(object) {
-    inherits(object, "merMod")
+    inherits(object, c("merMod", "lme", "gls"))
+}
+
+.sqrtMat <- function(A){
+  e <- eigen(A)
+  V <- e$vectors
+  if(length(e$values)==1){
+    S <- sqrt(e$values)
+  }else{
+    S <- diag(sqrt(e$values))
+  }
+  V %*% S %*% t(V)
 }
 
 

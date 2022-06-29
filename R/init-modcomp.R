@@ -2,7 +2,9 @@ modcomp_init <- function(m1, m2, matrixOK=FALSE){
     UseMethod("modcomp_init")
 }
 
-modcomp_init.merMod <- function(m1, m2, matrixOK = FALSE) {
+modcomp_init.merMod <- 
+  modcomp_init.lme <- 
+  modcomp_init.gls <- function(m1, m2, matrixOK = FALSE) {
     ## Comparison of the mean structures of the models
     ## It is tested for that (1) m1 is merMod and (2) m2 is either merMod or a matrix
 
@@ -56,6 +58,8 @@ modcomp_init.merMod <- function(m1, m2, matrixOK = FALSE) {
             }
     code
 }
+
+
 
 ##KRmodcomp_init.mer <- KRmodcomp_init.lmerMod
 

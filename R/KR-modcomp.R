@@ -88,6 +88,7 @@ KRmodcomp <- function(largeModel, smallModel, betaH=0, details=0){
 }
 
 
+#' @method KRmodcomp lmerMod
 #' @export
 #' @rdname kr-modcomp
 KRmodcomp.lmerMod <- function(largeModel, smallModel, betaH=0, details=0) {
@@ -138,6 +139,16 @@ KRmodcomp.lmerMod <- function(largeModel, smallModel, betaH=0, details=0) {
     out$L       <- L
     out
 }
+
+#' @method KRmodcomp lme
+#' @export
+#' @rdname kr-modcomp
+KRmodcomp.lme <- KRmodcomp.lmerMod 
+
+#' @method KRmodcomp gls
+#' @export
+#' @rdname kr-modcomp
+KRmodcomp.gls <- KRmodcomp.lmerMod 
 
 ## #' @rdname kr-modcomp
 ## KRmodcomp.mer <- KRmodcomp.lmerMod

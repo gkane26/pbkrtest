@@ -8,16 +8,25 @@
 \alias{vcovAdj0}
 \alias{vcovAdj2}
 \alias{vcovAdj.mer}
+\alias{vcovAdj.lme}
+\alias{vcovAdj.gsl}
 \alias{LMM_Sigma_G}
 \alias{get_SigmaG}
 \alias{get_SigmaG.lmerMod}
 \alias{get_SigmaG.mer}
+\alias{get_sigmaG.lme}
+\alias{get_SigmaG.gls}
+\alias{vcovAdj.gls}
 \title{Ajusted covariance matrix for linear mixed models according
     to Kenward and Roger}
 \usage{
 vcovAdj(object, details = 0)
 
 \method{vcovAdj}{lmerMod}(object, details = 0)
+
+\method{vcovAdj}{lme}(object, details = 0)
+
+\method{vcovAdj}{gls}(object, details = 0)
 }
 \arguments{
 \item{object}{An \code{lmer} model}

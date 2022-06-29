@@ -11,7 +11,8 @@
 ## Implemented in Banff, august 2013; Søren Højsgaard
 
 #' @aliases vcovAdj vcovAdj.lmerMod vcovAdj_internal vcovAdj0 vcovAdj2
-#'     vcovAdj.mer LMM_Sigma_G get_SigmaG get_SigmaG.lmerMod get_SigmaG.mer
+#'     vcovAdj.mer vcovAdj.lme vcovAdj.gsl LMM_Sigma_G get_SigmaG 
+#'     get_SigmaG.lmerMod get_SigmaG.mer get_sigmaG.lme get_SigmaG.gls
 #'
 #' @param object An \code{lmer} model
 #' @param details If larger than 0 some timing details are printed.
@@ -92,6 +93,21 @@ vcovAdj.lmerMod <- function(object, details=0){
 #' @export
 vcovAdj.lmerMod <- vcovAdj.lmerMod
 
+#' @method vcovAdj lme
+#' @rdname kr-vcov
+vcovAdj.lme <-vcovAdj.lmerMod
+
+#' @method vcovAdj gls
+#' @rdname kr-vcov
+vcovAdj.gls <-function(object, details=0){
+  if (!(getME(object, "is_REML"))) {
+    object <- update(object, . ~ ., REML = TRUE)
+  }
+  Phi      <- vcov(object)
+  SigmaG   <- get_SigmaG( object, details )
+  X_star        <- getME(object, "X_star")     
+  vcovAdj_internal( Phi, SigmaG, X_star, details=details)
+}
 
 
 ## Dette er en kopi af '2015' udgaven

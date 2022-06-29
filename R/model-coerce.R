@@ -83,6 +83,14 @@ model2remat.merMod <- function (largeModel, smallModel, sparse=FALSE) {
     if (sparse) .makeSparse(L) else L
 }
 
+#' @method model2remat lme
+#' @export
+model2remat.lme <- model2remat.merMod
+
+#' @method model2remat gls
+#' @export
+model2remat.gls <- model2remat.merMod
+
 #' @method model2remat lm
 #' @export
 model2remat.lm <- function (largeModel, smallModel, sparse=FALSE) {

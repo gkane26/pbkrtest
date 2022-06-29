@@ -6,3 +6,5 @@ devel/
 README.Rmd
 .github
 README_files/
+^.*\.Rproj$
+^\.Rproj\.user$
