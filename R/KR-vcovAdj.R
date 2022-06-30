@@ -95,10 +95,12 @@ vcovAdj.lmerMod <- vcovAdj.lmerMod
 
 #' @method vcovAdj lme
 #' @rdname kr-vcov
-vcovAdj.lme <-vcovAdj.lmerMod
+#' @export vcovAdj.lme
+vcovAdj.lme <- vcovAdj.lmerMod
 
 #' @method vcovAdj gls
 #' @rdname kr-vcov
+#' @export vcovAdj.gls
 vcovAdj.gls <-function(object, details=0){
   if (!(getME(object, "is_REML"))) {
     object <- update(object, . ~ ., REML = TRUE)
