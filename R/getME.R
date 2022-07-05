@@ -55,7 +55,7 @@ getME.gls <- function(object, name, ...){
   groups <- object$groups
   glsSt <- object$modelStruct$corStruct
   model <- object$model
-  mfArgs <- list(formula = asOneFormula(formula(glsSt), model, groups),
+  mfArgs <- list(formula = nlme::asOneFormula(formula(glsSt), model, groups),
                  data = getData(object))
   mfArgs$drop.unused.levels <- TRUE
   dataMod <- do.call(model.frame, mfArgs)
