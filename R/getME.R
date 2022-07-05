@@ -56,7 +56,7 @@ getME.gls <- function(object, name, ...){
   glsSt <- object$modelStruct$corStruct
   model <- object$model
   mfArgs <- list(formula = nlme::asOneFormula(formula(glsSt), model, groups),
-                 data = getData(object))
+                 data = nlme::getData(object))
   mfArgs$drop.unused.levels <- TRUE
   dataMod <- do.call(model.frame, mfArgs)
   origOrder <- row.names(dataMod)	# preserve the original order
@@ -70,7 +70,7 @@ getME.gls <- function(object, name, ...){
     ugroups <- unique(grps)
   } else grps <- NULL
   
-  X_raw <- model.matrix(formula(object), data=getData(object))
+  X_raw <- model.matrix(formula(object), data=nlme::getData(object))
   X_sorted <- X_raw[ord,]
   
   if(name=='X'){
@@ -93,7 +93,7 @@ getME.gls <- function(object, name, ...){
   }
   if(name=='X_star'){
     # Pinheiro & Bates p 202
-    invsqrtLambda <- lapply(ugroups, function(i) solve(.sqrtMat(getVarCov(object, individual = i)/(sigma( object )^2))))    
+    invsqrtLambda <- lapply(ugroups, function(i) solve(.sqrtMat(nlme::getVarCov(object, individual = i)/(sigma( object )^2))))    
     X_star   <- matrix(0, nrow=nrow(X_raw), ncol=ncol(X_raw))
     for(i in 1:length(ugroups)){
       X_star[groups==ugroups[i], ] <- t(invsqrtLambda[[i]]) %*% X_sorted[grps==ugroups[i],]
@@ -103,7 +103,7 @@ getME.gls <- function(object, name, ...){
   if(name=='Zt_star'){
     # Pinheiro & Bates p 202
     # Zt is (n_reff x n_subjects) rows by N cols, e.g. 1940 x 4790
-    invsqrtLambda <- lapply(ugroups, function(i) solve(.sqrtMat(getVarCov(object, individual = i)/(sigma( object )^2))))
+    invsqrtLambda <- lapply(ugroups, function(i) solve(.sqrtMat(nlme::getVarCov(object, individual = i)/(sigma( object )^2))))
     # Pinheiro & Bates p 202
     Zt_star <- matrix(0, nrow=length(ugroups), ncol=nrow(X_raw))
     for(i in 1:length(ugroups)){
