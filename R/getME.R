@@ -83,18 +83,26 @@ getME.gls <- function(object, name, ...){
     return(object$method=='REML')
   }
   if(name=='Zt'){
-    # Zt is (n_reff x n_subjects) rows by N cols, e.g. 1940 x 4790
-    # Pinheiro & Bates p 202
-    Zt <- matrix(0, nrow=length(ugroups) * length(glsSt), ncol=nrow(X_raw))
-    rows = rep(ugroups, each=length(glsSt))
-    cols = groups
-    c = 1
-    for (r in 1:length(rows)) {
-      if (rows[r] == cols[c]) {
-        Zt[r, c] = 1
-        c = c + 1
-      }
+    cor_dim = attr(glsSt, "Dim")
+    all_group = rep(1:cor_dim$M, each=cor_dim$maxLen)
+    all_group = levels(groups)[all_group]
+    all_cor = rep(1:cor_dim$maxLen, cor_dim$M)
+    all_group_cor = interaction(all_group, all_cor)
+    
+    covars = attr(glsSt, "covariate")
+    obs_group = c()
+    obs_cor = c()
+    for (i in 1:length(covars)) {
+      obs_group = c(obs_group, rep(names(covars)[i], length(covars[[i]])))
+      obs_cor = c(obs_cor, covars[[i]] + 1)
     }
+    obs_group_cor = interaction(obs_group, obs_cor)
+    drop = which(!sapply(all_group_cor, function(x) x %in% obs_group_cor))
+    
+    Zt = diag(1, cor_dim$M*cor_dim$maxLen)
+    Zt = Zt[, -drop]
+    rownames(Zt) = all_group
+    colnames(Zt) = origOrder
     return(Matrix(Zt, sparse=TRUE))
   }
   if(name=='X_star'){

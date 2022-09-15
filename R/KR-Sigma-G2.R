@@ -114,12 +114,11 @@ get_SigmaG.gls <- function(object, details=0) {
   n.lev = length(unique(object$groups))
   Ig    <- Matrix::sparseMatrix(1:n.lev, 1:n.lev, x=1)
   
-  n.comp.by.RT = length(object$modelStruct$corStruct)
+  n.comp.by.RT = attr(object$modelStruct$corStruct, "Dim")$maxLen
   n.parm.by.RT = (n.comp.by.RT + 1) * n.comp.by.RT / 2
   for (rr in 1:n.parm.by.RT) {
-    ii = if (rr <= n.comp.by.RT) 1 else 1 + floor(rr / n.comp.by.RT)
-    jj = if (rr <= n.comp.by.RT) rr else rr - ii
-    ii.jj = c(ii, jj)
+    ii.jj = .index2UpperTriEntry(rr, n.comp.by.RT)
+    ii.jj = unique(ii.jj)
     if (length(ii.jj)==1){
       EE <- Matrix::sparseMatrix(ii.jj, ii.jj, x=1, dims=rep(n.comp.by.RT, 2))
     } else {
@@ -128,10 +127,6 @@ get_SigmaG.gls <- function(object, details=0) {
     EE <- Ig %x% EE  ## Kronecker product
     G  <- c( G, list( Matrix::t(ZZ) %*% EE %*% ZZ ) )
   }
-  
-  ## Extend by the indentity for the residual
-  n.obs <- nrow(getME(object,'X'))
-  G    <- c( G, list(sparseMatrix(1:n.obs, 1:n.obs, x=1 )) )
   
   Sigma <- ggamma[1] * G[[1]]
   for (ii in 2:n.ggamma) {
