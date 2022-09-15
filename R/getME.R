@@ -84,9 +84,12 @@ getME.gls <- function(object, name, ...){
   }
   if(name=='Zt'){
     cor_dim = attr(glsSt, "Dim")
+    covars = attr(glsSt, "covariate")
+    covar_levels = unique(unlist(covars))
+    
     all_group = rep(1:cor_dim$M, each=cor_dim$maxLen)
     all_group = levels(groups)[all_group]
-    all_cor = rep(1:cor_dim$maxLen, cor_dim$M)
+    all_cor = rep(covar_levels, cor_dim$M)
     all_group_cor = interaction(all_group, all_cor)
     
     covars = attr(glsSt, "covariate")
@@ -94,13 +97,13 @@ getME.gls <- function(object, name, ...){
     obs_cor = c()
     for (i in 1:length(covars)) {
       obs_group = c(obs_group, rep(names(covars)[i], length(covars[[i]])))
-      obs_cor = c(obs_cor, covars[[i]] + 1)
+      obs_cor = c(obs_cor, covars[[i]])
     }
     obs_group_cor = interaction(obs_group, obs_cor)
     drop = which(!sapply(all_group_cor, function(x) x %in% obs_group_cor))
     
     Zt = diag(1, cor_dim$M*cor_dim$maxLen)
-    Zt = Zt[, -drop]
+    if (length(drop) > 0) Zt = Zt[, -drop]
     rownames(Zt) = all_group
     colnames(Zt) = origOrder
     return(Matrix(Zt, sparse=TRUE))
