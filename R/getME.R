@@ -85,9 +85,15 @@ getME.gls <- function(object, name, ...){
   if(name=='Zt'){
     # Zt is (n_reff x n_subjects) rows by N cols, e.g. 1940 x 4790
     # Pinheiro & Bates p 202
-    Zt <- matrix(0, nrow=length(ugroups), ncol=nrow(X_raw))
-    for(i in 1:length(ugroups)){
-      Zt[i, groups==ugroups[i]] <- t(as.matrix(rep(1, sum(groups==ugroups[i]))))
+    Zt <- matrix(0, nrow=length(ugroups) * length(glsSt), ncol=nrow(X_raw))
+    rows = rep(ugroups, each=length(glsSt))
+    cols = groups
+    c = 1
+    for (r in 1:length(rows)) {
+      if (rows[r] == cols[c]) {
+        Zt[r, c] = 1
+        c = c + 1
+      }
     }
     return(Matrix(Zt, sparse=TRUE))
   }

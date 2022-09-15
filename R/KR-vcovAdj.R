@@ -1,6 +1,6 @@
 ################################################################################
 #'
-#' @title Ajusted covariance matrix for linear mixed models according
+#' @title Adjusted covariance matrix for linear mixed models according
 #'     to Kenward and Roger
 #' @description Kenward and Roger (1997) describbe an improved small
 #'     sample approximation to the covariance matrix estimate of the
@@ -107,8 +107,8 @@ vcovAdj.gls <-function(object, details=0){
   }
   Phi      <- vcov(object)
   SigmaG   <- get_SigmaG( object, details )
-  X_star        <- getME(object, "X_star")     
-  vcovAdj_internal( Phi, SigmaG, X_star, details=details)
+  X        <- getME(object, "X")     
+  vcovAdj_internal( Phi, SigmaG, X, details=details)
 }
 
 

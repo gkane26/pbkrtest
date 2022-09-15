@@ -20,7 +20,7 @@ get_SigmaG.lme  <- function(object, details=0) {
   DB     <- details > 0 ## For debugging only
   if (!.is.lmm(object))
     stop("'object' is not Gaussian linear mixed model")
-
+  
   GGamma <- list(grp1 = getVarCov(object))
   SS     <- .shgetME.lme( object )
   ## Put covariance parameters for the random effects into a vector:
@@ -33,7 +33,7 @@ get_SigmaG.lme  <- function(object, details=0) {
   }
   ggamma   <- c( ggamma, sigma( object )^2 ) ## Extend ggamma by the residuals variance
   n.ggamma <- length(ggamma)
-
+  
   ## Find G_r:
   G  <- NULL
   Zt <- getME( object, "Zt" )
@@ -55,85 +55,102 @@ get_SigmaG.lme  <- function(object, details=0) {
       G  <- c( G, list( t(ZZ) %*% EE %*% ZZ ) )
     }
   }
-
+  
   ## Extend by the indentity for the residual
   n.obs <- nrow(getME(object,'X'))
   G    <- c( G, list(sparseMatrix(1:n.obs, 1:n.obs, x=1 )) )
-
+  
   Sigma <- ggamma[1] * G[[1]]
   for (ii in 2:n.ggamma) {
     Sigma <- Sigma + ggamma[ii] * G[[ii]]
   }
-
+  
   SigmaG <- list(Sigma=Sigma, G=G, n.ggamma=n.ggamma)
   SigmaG
 }
 
+.VarCorr.gls <- function(object) {
+  sddevs = sqrt(
+    coef(
+      object$modelStruct$varStruct,
+      uncons = FALSE,
+      allCoef = TRUE
+    )^2 * object$sigma^2
+  )
+  r = coef(object$modelStruct$corStruct, uncons = FALSE, allCoef = TRUE)
+  cors = diag(1, length(sddevs))
+  cors[lower.tri(cors)] = r
+  cors[upper.tri(cors)] = r
+  rownames(cors) = names(sddevs)
+  colnames(cors) = names(sddevs)
+  
+  vc = list()
+  vc[[1]] = diag(sddevs) %*% cors %*% diag(sddevs)
+  dimnames(vc[[1]]) = dimnames(cors)
+  attr(vc[[1]], "stddev") = sddevs
+  attr(vc[[1]], "correlation") = cors
+  
+  vc
+}
+
 get_SigmaG.gls <- function(object, details=0) {
-  DB     <- details > 0 ## For debugging only
+  
+  DB <- details > 0 ## For debugging only
   if (!.is.lmm(object))
     stop("'object' is not Gaussian linear mixed model")  
-
-  # variance of random effects of b's is 0
-  GGamma <- 0
-
+  
+  # variance-covariance of random effects
+  GGamma <- .VarCorr.gls(object)
+  
   ## Put covariance parameters for the random effects into a vector:
   ## Fixme: It is a bit ugly to throw everything into one long vector here; a list would be more elegant
-  ggamma <- NULL
-  for ( ii in 1) {
-    vc     <- GGamma[[ii]] 
-    Lii    <- matrix(as.numeric(vc), nrow=1, ncol=1)
-    ggamma <- c(ggamma, Lii[ lower.tri( Lii, diag=TRUE ) ] )
-  }
-  ggamma   <- c( ggamma, sigma( object )^2 ) ## Extend ggamma by the residuals variance
+  Lii <- GGamma[[1]]
+  ggamma = Lii[ lower.tri( Lii, diag=TRUE ) ]
   n.ggamma <- length(ggamma)
-
+  
   ## Find G_r:
   G  <- NULL
-  groups <- object$groups
-  ugroups <- sort(unique(groups))
-  Zt_star        <- getME(object,"Zt_star")
-  for (ss in 1) {
-    ZZ    <- .shget_Zt_group( ss, Zt_star, c(0,length(ugroups)) )
-    n.lev <- length(ugroups) ## ; cat(sprintf("n.lev=%i\n", n.lev))
-    Ig    <- sparseMatrix(1:n.lev, 1:n.lev, x=1)
-    for (rr in 1) {
-      ## This is takes care of the case where there is random regression and several matrices have to be constructed.
-      ## FIXME: I am not sure this is correct if there is a random quadratic term. The '2' below looks suspicious.
-      ii.jj <- .index2UpperTriEntry( rr, 1 ) ##; cat("ii.jj:"); print(ii.jj)
-      ii.jj <- unique(ii.jj)
-      if (length(ii.jj)==1){
-        EE <- sparseMatrix(ii.jj, ii.jj, x=1, dims=rep(1, 2))
-      } else {
-        EE <- sparseMatrix(ii.jj, ii.jj[2:1], dims=rep(1, 2))
-      }
-      EE <- Ig %x% EE  ## Kronecker product
-      G  <- c( G, list( t(ZZ) %*% EE %*% ZZ ) )
+  ZZ <- getME(object, "Zt")
+  n.lev = length(unique(object$groups))
+  Ig    <- Matrix::sparseMatrix(1:n.lev, 1:n.lev, x=1)
+  
+  n.comp.by.RT = length(object$modelStruct$corStruct)
+  n.parm.by.RT = (n.comp.by.RT + 1) * n.comp.by.RT / 2
+  for (rr in 1:n.parm.by.RT) {
+    ii = if (rr <= n.comp.by.RT) 1 else 1 + floor(rr / n.comp.by.RT)
+    jj = if (rr <= n.comp.by.RT) rr else rr - ii
+    ii.jj = c(ii, jj)
+    if (length(ii.jj)==1){
+      EE <- Matrix::sparseMatrix(ii.jj, ii.jj, x=1, dims=rep(n.comp.by.RT, 2))
+    } else {
+      EE <- Matrix::sparseMatrix(ii.jj, ii.jj[2:1], dims=rep(n.comp.by.RT, 2))
     }
+    EE <- Ig %x% EE  ## Kronecker product
+    G  <- c( G, list( Matrix::t(ZZ) %*% EE %*% ZZ ) )
   }
-
+  
   ## Extend by the indentity for the residual
   n.obs <- nrow(getME(object,'X'))
   G    <- c( G, list(sparseMatrix(1:n.obs, 1:n.obs, x=1 )) )
-
+  
   Sigma <- ggamma[1] * G[[1]]
   for (ii in 2:n.ggamma) {
     Sigma <- Sigma + ggamma[ii] * G[[ii]]
   }
-
+  
   SigmaG <- list(Sigma=Sigma, G=G, n.ggamma=n.ggamma)
   SigmaG
 }
 
 .get_SigmaG  <- function(object, details=0) {
-
+  
   DB     <- details > 0 ## For debugging only
   if (!.is.lmm(object))
     stop("'object' is not Gaussian linear mixed model")
-
+  
   GGamma <- VarCorr(object)
   SS     <- .shgetME( object )
-
+  
   ## Put covariance parameters for the random effects into a vector:
   ## Fixme: It is a bit ugly to throw everything into one long vector here; a list would be more elegant
   ggamma <- NULL
@@ -143,7 +160,7 @@ get_SigmaG.gls <- function(object, details=0) {
   }
   ggamma   <- c( ggamma, sigma( object )^2 ) ## Extend ggamma by the residuals variance
   n.ggamma <- length(ggamma)
-
+  
   ## Find G_r:
   G  <- NULL
   Zt <- getME( object, "Zt" )
@@ -165,17 +182,17 @@ get_SigmaG.gls <- function(object, details=0) {
       G  <- c( G, list( t(ZZ) %*% EE %*% ZZ ) )
     }
   }
-
+  
   ## Extend by the indentity for the residual
   n.obs <- nrow(getME(object,'X'))
   G    <- c( G, list(sparseMatrix(1:n.obs, 1:n.obs, x=1 )) )
-
-
+  
+  
   Sigma <- ggamma[1] * G[[1]]
   for (ii in 2:n.ggamma) {
     Sigma <- Sigma + ggamma[ii] * G[[ii]]
   }
-
+  
   SigmaG <- list(Sigma=Sigma, G=G, n.ggamma=n.ggamma)
   SigmaG
 }
@@ -188,9 +205,9 @@ get_SigmaG.gls <- function(object, details=0) {
   n.comp.by.RT <- .get.RT.dim.by.RT( object )
   n.parm.by.RT <- (n.comp.by.RT + 1) * n.comp.by.RT / 2
   n.RE.by.RT   <- diff( Gp )
-
+  
   n.lev.by.RT2 <- n.RE.by.RT / n.comp.by.RT ## Same as n.lev.by.RT2 ???
-
+  
   list(Gp           = Gp,           ## group.index
        n.RT         = n.RT,         ## n.groupFac
        n.lev.by.RT  = n.lev.by.RT,  ## nn.groupFacLevelsNew
@@ -199,7 +216,7 @@ get_SigmaG.gls <- function(object, details=0) {
        n.RE.by.RT   = n.RE.by.RT,   ## ... Not returned before
        n.lev.by.RT2 = n.lev.by.RT2, ## nn.groupFacLevels
        n_rtrms      = getME( object, "n_rtrms")
-       )
+  )
 }
 
 .shgetME.lme <- function( object ){
@@ -209,9 +226,9 @@ get_SigmaG.gls <- function(object, details=0) {
   n.comp.by.RT <- length(unlist(getME( object, "cnms")))
   n.parm.by.RT <- (n.comp.by.RT + 1) * n.comp.by.RT / 2
   n.RE.by.RT   <- diff( Gp )
-
+  
   n.lev.by.RT2 <- n.RE.by.RT / n.comp.by.RT ## Same as n.lev.by.RT2 ???
-
+  
   list(Gp           = Gp,           ## group.index
        n.RT         = n.RT,         ## n.groupFac
        n.lev.by.RT  = n.lev.by.RT,  ## nn.groupFacLevelsNew
@@ -220,14 +237,14 @@ get_SigmaG.gls <- function(object, details=0) {
        n.RE.by.RT   = n.RE.by.RT,   ## ... Not returned before
        n.lev.by.RT2 = n.lev.by.RT2, ## nn.groupFacLevels
        n_rtrms      = getME( object, "n_rtrms")
-       )
+  )
 }
 
 .getME.all <- function(obj) {
-   nmME <- eval(formals(getME)$name)
-   sapply(nmME, function(nm) try(getME(obj, nm)),
-          simplify=FALSE)
-
+  nmME <- eval(formals(getME)$name)
+  sapply(nmME, function(nm) try(getME(obj, nm)),
+         simplify=FALSE)
+  
 }
 
 ## Alternative to .get_Zt_group
@@ -250,13 +267,13 @@ get_SigmaG.gls <- function(object, details=0) {
 }
 
 .get_GI_matrices <- function( object ){
-
+  
   SS     <- .shgetME( object )
   Zt <- getME( object, "Zt" )
-
+  
   G  <- NULL
   G  <- vector("list", SS$n.RT+1)
-
+  
   for (ss in 1:SS$n.RT) {
     ZZ    <- .shget_Zt_group( ss, Zt, SS$Gp )
     n.lev <- SS$n.lev.by.RT2[ ss ] ## ; cat(sprintf("n.lev=%i\n", n.lev))
@@ -297,30 +314,30 @@ get_SigmaG.gls <- function(object, details=0) {
 ## LMM_Sigma_G  <- function(object, details=0) { 
 
 ##     DB     <- details > 0 ## For debugging only
-    
+
 ##     if (!.is.lmm(object))
 ##         stop("'object' is not Gaussian linear mixed model")
-    
+
 ##     GGamma <- VarCorr(object)  
 ##     ## Indexing of the covariance matrix;
 ##     ## this is somewhat technical and tedious
 ##     Nindex <- .get_indices(object)
-    
+
 ##     ## number of random effects in each groupFac; note: residual error excluded!
 ##     n.groupFac <- Nindex$n.groupFac
-    
+
 ##     ## the number of random effects for each grouping factor
 ##     nn.groupFacLevels <- Nindex$nn.groupFacLevels
-    
+
 ##     ## size of the symmetric variance Gamma_i for reach groupFac
 ##     nn.GGamma <- Nindex$nn.GGamma
-    
+
 ##     ## number of variance parameters of each GGamma_i  
 ##     mm.GGamma   <-  Nindex$mm.GGamma
-    
+
 ##     ## not sure what this is...
 ##     group.index <- Nindex$group.index
-    
+
 ##     ## writing the covariance parameters for the random effects into a vector: 
 ##     ggamma <- NULL
 ##     for ( ii in 1:(n.groupFac) ) {
@@ -330,58 +347,58 @@ get_SigmaG.gls <- function(object, details=0) {
 ##         ##                               Lii[2,2], Lii[2,3] ...
 ##         ggamma<-c(ggamma,Lii[lower.tri(Lii,diag=TRUE)])
 ##     }
-    
+
 ##     ## extend ggamma by the residuals variance such that everything random is included
 ##     ggamma   <- c( ggamma, sigma( object )^2 )
 ##     n.ggamma <- length(ggamma)
-    
+
 ##     ## Find G_r:
 ##     Zt <- getME( object, "Zt" )
-    
+
 ##     t0 <- proc.time()
 ##     G  <- NULL
 ##     ##cat(sprintf("n.groupFac=%i\n", n.groupFac))
 ##     for (ss in 1:n.groupFac) {
 ##         ZZ <- .get_Zt_group(ss, Zt, object)
 ##         ##cat("ZZ\n"); print(ZZ)
-        
+
 ##         n.levels <- nn.groupFacLevels[ss]
 ##         ##cat(sprintf("n.levels=%i\n", n.levels))
-        
+
 ##         Ig <- sparseMatrix(1:n.levels, 1:n.levels, x=1)
 ##         ##print(Ig)
 ##         for (rr in 1:mm.GGamma[ss]) {
 ##             ii.jj <- .indexVec2Symmat(rr,nn.GGamma[ss])
 ##             ##cat("ii.jj:"); print(ii.jj)
 ##             ii.jj <- unique(ii.jj)
-            
+
 ##             if (length(ii.jj)==1){
 ##                 EE <- sparseMatrix(ii.jj, ii.jj, x=1, dims=rep(nn.GGamma[ss],2))
 ##             } else {
 ##                 EE <- sparseMatrix(ii.jj, ii.jj[2:1], dims=rep(nn.GGamma[ss],2))
 ##             }
 ##             ##cat("EE:\n");print(EE)
-            
+
 ##             EE <- Ig %x% EE  ## Kronecker product
 ##             G  <- c( G, list( t(ZZ) %*% EE %*% ZZ ) )
 ##         }
 ##     }
-    
+
 ##     ## Extend by the indentity for the residual
 ##     nobs <- nrow(getME(object,'X'))
 ##     G    <- c( G, list(sparseMatrix(1:nobs, 1:nobs, x=1 )) ) 
-    
-    
+
+
 ##     if(DB){cat(sprintf("Finding G  %10.5f\n", (proc.time()-t0)[1] )); t0 <- proc.time()}
-    
+
 ##     Sigma <- ggamma[1] * G[[1]]
 ##     for (ii in 2:n.ggamma) {
 ##         Sigma <- Sigma + ggamma[ii] * G[[ii]]
 ##     }
-    
+
 ##     if(DB){cat(sprintf("Finding Sigma:    %10.5f\n", (proc.time()-t0)[1] ));
 ##         t0 <- proc.time()}
-    
+
 ##     SigmaG <- list(Sigma=Sigma, G=G, n.ggamma=n.ggamma)
 ##     SigmaG
 ## }  
@@ -398,14 +415,14 @@ get_SigmaG.gls <- function(object, details=0) {
 ##   gg <- sapply(getME(object,"flist"), function(x)length(levels(x)))
 
 ##   qq <- .get.RT.dim.by.RT( object ) ##;  cat("qq:\n"); print(qq)
-  
+
 ##   ## number of variance parameters of each GGamma_i
 ##   ss <- qq * (qq+1) / 2
 
 ##   ## numb of random effects per level of random-term-factor
 ##   nn.groupFac <- diff(Gp)  
 ##   ##cat("nn.groupFac:\n"); print(nn.groupFac)
-  
+
 ##   ## number  of levels for each  random-term-factor; residual error here excluded!
 ##   nn.groupFacLevels <- nn.groupFac / qq
 
@@ -434,7 +451,7 @@ get_SigmaG.gls <- function(object, details=0) {
 ## ##   cat(".get_Zt_group\n");
 ## ##   print(group.index)
 ## ##   print(ii.group)
-  
+
 ##   zIndex.sub <-
 ##     if (.cc %in% "mer") {
 ##       Nindex$group.index[ii.group]+

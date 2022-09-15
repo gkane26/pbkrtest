@@ -17,7 +17,7 @@
 \alias{get_sigmaG.lme}
 \alias{get_SigmaG.gls}
 \alias{vcovAdj.gls}
-\title{Ajusted covariance matrix for linear mixed models according
+\title{Adjusted covariance matrix for linear mixed models according
     to Kenward and Roger}
 \usage{
 vcovAdj(object, details = 0)
